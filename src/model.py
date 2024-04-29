@@ -8,14 +8,14 @@ class Model(tf.keras.Model):
     def __init__(self):
         
         super().__init__()
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
         self.cnn_layer = tf.keras.Sequential([
-            tf.keras.layers.Conv3D(32, (3, 3, 3), strides = 1, input_shape=(10, 100, 100, 1), activation='relu', padding='valid'), 
+            tf.keras.layers.Conv3D(32, (3, 3, 3), strides = 1, input_shape=(22, 100, 100, 1), activation='relu', padding='valid'), 
             tf.keras.layers.MaxPool3D(pool_size=(2, 2, 2), strides=2),
             tf.keras.layers.Conv3D(64, (3, 3, 3), strides = 1, activation='relu', padding='valid'),
             tf.keras.layers.MaxPool3D(pool_size=(2, 2, 2), strides=2),
-            # tf.keras.layers.Conv3D(64, (2, 2, 2), activation='relu', strides=2),
-            # tf.keras.layers.MaxPool3D(pool_size=(2, 2, 2), strides=2)
+            tf.keras.layers.Conv3D(64, (2, 2, 2), activation='relu', strides=2),
+            tf.keras.layers.MaxPool3D(pool_size=(2, 2, 2), strides=2)
         ])
 
         self.embedding = tf.keras.layers.Embedding(10, 5) # 5 is hyperparam
@@ -28,8 +28,8 @@ class Model(tf.keras.Model):
         ])
 
         self.ff_layer = tf.keras.Sequential([
-            tf.keras.layers.Dense(units=128, activation='relu'),
-            tf.keras.layers.Dropout(.2),
+            # tf.keras.layers.Dense(units=128, activation='relu'),
+            # tf.keras.layers.Dropout(.2),
             tf.keras.layers.Dense(units=64, activation='relu'),
             tf.keras.layers.Dropout(.2),
             tf.keras.layers.Dense(units=10),
@@ -38,7 +38,9 @@ class Model(tf.keras.Model):
 
     def call(self, inputs):
         outputs = inputs
+        # print(outputs.shape)
         outputs = self.cnn_layer(outputs)
+        # print
         outputs = tf.reshape(outputs, (outputs.shape[0],outputs.shape[-1], outputs.shape[2]*outputs.shape[3]))
         outputs = self.rnn_layer(outputs)
         outputs = self.flatten(outputs)
@@ -91,6 +93,7 @@ def train(model, trainloader):
             acc = model.accuracy_function(y_pred, Y)
             accuracy_sum += acc
         gradients = tape.gradient(loss, model.trainable_variables)
+        # print(gradients)
         model.optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
 
@@ -135,7 +138,7 @@ def test(model, testloader):
     return average_accuracy
 
 def main():
-    train_dataset, test_dataset = load_data(batch_size=25)
+    train_dataset, test_dataset = load_data(batch_size=5)
     # print(train_dataset, test_dataset)
     # train_inputs = train_dataset[0]
     # train_labels = train_dataset[1]

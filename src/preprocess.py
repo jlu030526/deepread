@@ -21,9 +21,11 @@ def preprocess_image(image_path, width=100, height=100):
     src = cv2.imread(image_path) 
 
     gray_image = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
+    # src.resize((width, height))
     gray_image.resize((width, height))
     # print(gray_image.shape)
 
+    # return src
     return gray_image
 
 
@@ -72,14 +74,15 @@ def preprocess():
         "10": "web",
     }
 
-    
+    max_seq_length = 22
     videos = []
     labels = []
 
     dataset_dir = "data/kaggle/dataset/dataset"
+    cropped_dir = "data/kaggle/cropped/cropped"
     
     category = "words"
-    person_IDs = os.listdir(dataset_dir)
+    person_IDs = os.listdir(cropped_dir)
     path = dataset_dir + "/"
     for person_id in person_IDs:
         print(f"person_ID:{person_id}")
@@ -101,18 +104,20 @@ def preprocess():
                                 if "color" in img_path:
                                     img = preprocess_image(dir_path + "/" + img_path)
 
-                                    # print(img.shape)
+                                    # print(img)
                                     frames.append(img)
 
 
                         # print(frames.shape)
-                        if len(frames) == 10:
-                            frame_array = np.asarray(frames)
-                            # print(frame_array.shape)
-                            label_array = np.asarray(label)
-                            # print(label)
-                            videos.append(frame_array)
-                            labels.append(label_array)
+                        # if len(frames) == 10:
+                        pad_array = [np.zeros((100, 100))]                            
+                        frames.extend(pad_array * (max_seq_length - len(frames)))
+                        frame_array = np.asarray(frames)
+                        # print(frame_array.shape)
+                        label_array = np.asarray(label)
+                        # print(label)
+                        videos.append(frame_array)
+                        labels.append(label_array)
                         
 
                         # frame_array = np.asarray(frames)
@@ -124,24 +129,32 @@ def preprocess():
                         # labels.append(label_array)
     # print(len(videos[1]))
     video_array = np.asarray(videos, dtype=object)
+    print(video_array.shape)
     bound = int(.8 * len(video_array))
     video_train = video_array[:bound]
     video_test = video_array[bound:]
     video_array = [video_train, video_test]
 
     labels_array = np.asarray(labels, dtype=object)
+    print(labels_array.shape)
     labels_train = labels_array[:bound]
     labels_test = labels_array[bound:]
     labels_array = [labels_train, labels_test]
     # print(video_array.shape)
-    # print(labels_array.shape)
-    np.save('output/videos_train.npy', video_train, allow_pickle=True)
-    np.save('output/videos_test.npy', video_test, allow_pickle=True)
-    np.save('output/labels_train.npy', labels_train, allow_pickle=True)
-    np.save('output/labels_test.npy', labels_test, allow_pickle=True)
+    
+    save_file_names=[
+        'output/crop_videos_train.npy',
+        'output/crop_videos_test.npy',
+        'output/crop_labels_train.npy',
+        'output/crop_labels_test.npy']
+    np.save(save_file_names[0], video_train, allow_pickle=True)
+    np.save(save_file_names[1], video_test, allow_pickle=True)
+    np.save(save_file_names[2], labels_train, allow_pickle=True)
+    np.save(save_file_names[3], labels_test, allow_pickle=True)
             
 
 def open_data():
+    
     X_train = np.load("output/videos_train.npy", allow_pickle=True)
     X_test = np.load("output/videos_test.npy", allow_pickle=True)
     Y_train = np.load("output/labels_train.npy", allow_pickle=True)
@@ -149,11 +162,31 @@ def open_data():
 
     return X_train, Y_train, X_test, Y_test
 
+def open_crop_data():
+    X_train = np.load("output/crop_videos_train.npy", allow_pickle=True)
+    X_test = np.load("output/crop_videos_test.npy", allow_pickle=True)
+    Y_train = np.load("output/crop_labels_train.npy", allow_pickle=True)
+    Y_test = np.load("output/crop_labels_test.npy", allow_pickle=True)
+
+    return X_train, Y_train, X_test, Y_test
+
 def load_data(batch_size, buffer_size=1024):
-    X_train, Y_train, X_test, Y_test = open_data()
+    X_train, Y_train, X_test, Y_test = open_crop_data()
 
     X_train /= 255.0
     X_test /= 255.0
+    # print(X_train[0])
+
+    def normalize_it(X):
+        v_min = X.min(axis=(2, 3), keepdims=True)
+        v_max = X.max(axis=(2, 3), keepdims=True)
+        X = (X - v_min)/(v_max - v_min)
+        X = np.nan_to_num(X)
+        return X
+
+    # X_train = normalize_it(X_train)
+    # X_test = normalize_it(X_test)
+
     X_train = tf.convert_to_tensor(X_train, dtype=tf.float32)
     
     X_test = tf.convert_to_tensor(X_test, dtype=tf.float32)
