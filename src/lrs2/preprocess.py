@@ -57,34 +57,28 @@ def read_video(video_filepath):
 
 
 def read_files(src):
-    vid_data_pairs = []
+    video_name_to_data = {}
     for file in os.listdir(src):
-        pair = []
         if '.txt' in file:
+            video_name = os.path.splitext(src+file)[0]
             video_filepath = os.path.splitext(src+file)[0] + ".mp4"
-            text_filepath = os.path.splitext(src+file)[0] + '.txt'
+            text_filepath = os.path.splitext(src+file)[0] + ".txt"
 
             first_line = None
             with open(text_filepath, 'r') as f:
                 first_line = " ".join(f.readline().split()[1:])
 
-
             data = pd.read_csv(
                 src + file, sep=" ", 
                 usecols=["WORD", "START", "END", "ASDSCORE"],
                 skiprows=3)
-            # print(data)
-            video = read_video(video_filepath)
-            pair.append(data)
-            pair.append(video)
-            pair.append(first_line)
+            
+            video_name_to_data[video_name] = (first_line, data)
 
             if len(data) == 0:
                 print("WHAT THE F")
-        
-            vid_data_pairs.append(pair)
 
-    return vid_data_pairs
+    return video_name_to_data
 
 def read_file(file_path):
     data = pd.read_csv(
@@ -102,26 +96,25 @@ def load_data():
     # data = read_file(data_file_path)
     # preprocess(data_dir, vid_file_path, data)
 
-    video_data_pairs = read_files(data_dir)
+    video_name_to_data = read_files(data_dir)
     # print(video_data_pairs)
     data_representations = []
-    train_captions = []
-    train_videos = []
+    all_captions = []
+    all_videos = []
 
-    for [data, vid, sentence] in video_data_pairs:
-        
-        word_frame_dict = preprocess(data_dir, vid, data)
-        data_representations.append(sentence, word_frame_dict)
-        train_captions.append(sentence)
-        train_videos.append(vid)
+    for video_name in video_name_to_data.keys():
+        video = read_video(video_name + '.mp4')
+        word_frame_dict = preprocess(data_dir, video, video_name_to_data[video_name][1])
+        data_representations.append(video_name_to_data[video_name][0], word_frame_dict)
+        all_captions.append(video_name_to_data[video_name][0])
+        all_videos.append(video)
 
     return dict(
-        train_captions = train_captions,
-        train_videos = train_videos,
+        train_captions = all_captions,
+        train_videos = all_videos,
         data_representations = data_representations,
         
     )
-
 
 
 def create_pickle(data_folder):
