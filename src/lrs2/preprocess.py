@@ -10,6 +10,7 @@ import moviepy
 from moviepy.editor import VideoFileClip
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 import math
+import av
 
 def preprocess(output_dir, video, timestamp_data):
     words = timestamp_data["WORD"]
@@ -47,6 +48,13 @@ def read_video(video_filepath):
     
     vid = imageio.get_reader(video_filepath, 'ffmpeg')
 
+    # container = av.open(video_filepath)
+
+    # ims = [frame.to_image() for frame in container.decode(video=0)]
+    # ims = [im.convert('L') for im in ims ]
+    # ims = np.array([np.array(im) for im in ims])
+    # print(ims.shape)
+    # print(vid)
     return vid
 
 
