@@ -9,9 +9,9 @@ import wave
 import moviepy
 from moviepy.editor import VideoFileClip
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
+import math
 
 def preprocess(output_dir, video, timestamp_data):
-    # print(timestamp_data)
     words = timestamp_data["WORD"]
     start = timestamp_data["START"]
     end = timestamp_data["END"]
@@ -21,10 +21,10 @@ def preprocess(output_dir, video, timestamp_data):
     for word, start, end in zip(words, start, end):
         
         frames = []
-        frame_num = int(start * video.get_meta_data()['fps'])
-        while frame_num < int(end * video.get_meta_data()['fps']):
+        frame_num = math.ceil(start * video.get_meta_data()['fps'])
+        while frame_num < math.floor(end * video.get_meta_data()['fps']):
             frames.append(video.get_data(frame_num))
-            frame_num += video.get_meta_data()['fps']
+            frame_num += 1
         
         word_frames_dict[word] = frames
 
@@ -96,6 +96,7 @@ def main():
         # print(filename)
         # print(data)
         word_frame_dict = preprocess(data_dir, vid, data)
+        # print(word_frame_dict)
         # print(word_frame_dict)
         
     #     image = vid.get_data(10)
