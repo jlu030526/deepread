@@ -81,9 +81,6 @@ def read_files(src):
             
             video_name_to_data[video_name] = (first_line, data)
 
-            if len(data) == 0:
-                print("WHAT THE F")
-
     return video_name_to_data
 
 def read_file(file_path):

@@ -176,7 +176,10 @@ import numpy as np
 from preprocess import load_from_pickle
 
 class Model(tf.keras.Model):
-    def __init__(self):
+    def __init__(self, vocab_size, hidden_size):
+
+        self.vocab_size  = vocab_size
+        self.hidden_size = hidden_size
         
         super().__init__()
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
@@ -186,24 +189,25 @@ class Model(tf.keras.Model):
             tf.keras.layers.Conv3D(64, (3, 3, 3), strides = 1, activation='relu', padding='valid'),
             tf.keras.layers.MaxPool3D(pool_size=(2, 2, 2), strides=2),
             tf.keras.layers.Conv3D(64, (2, 2, 2), activation='relu', strides=2),
-            tf.keras.layers.MaxPool3D(pool_size=(2, 2, 2), strides=2)
+            tf.keras.layers.MaxPool3D(pool_size=(2, 2, 2), strides=2),
+            tf.keras.layers.Dense(units=self.hidden_size, activation='relu'),
+            tf.keras.layers.Dense(units=self.hidden_size)
+            
         ])
 
-        self.embedding = tf.keras.layers.Embedding(10, 5) # 5 is hyperparam
+        self.embedding = tf.keras.layers.Embedding(self.vocab_size, self.hidden_size) # 5 is hyperparam
 
         self.flatten = tf.keras.layers.Flatten()
 
         self.rnn_layer = tf.keras.Sequential([
-            tf.keras.layers.LSTM(32, return_sequences=True),
+            tf.keras.layers.LSTM(self.hidden_size, return_sequences=True),
             tf.keras.layers.Dropout(.2),
         ])
 
         self.ff_layer = tf.keras.Sequential([
-            # tf.keras.layers.Dense(units=128, activation='relu'),
-            # tf.keras.layers.Dropout(.2),
-            tf.keras.layers.Dense(units=64, activation='relu'),
+            tf.keras.layers.Dense(units=self.hidden_size, activation='relu'),
             tf.keras.layers.Dropout(.2),
-            tf.keras.layers.Dense(units=10),
+            tf.keras.layers.Dense(units=self.vocab_size),
         ])
 
 
@@ -261,7 +265,8 @@ class Model(tf.keras.Model):
         # gather traincaptions, indices
         train_captions = tf.gather(train_captions, shuffled_indices)
         # gather with image_features, shuffledcaptions
-        train_image_features = tf.gather(train_image_features, shuffled_indices)
+        train_videos = tf.gather(train_videos, shuffled_indices)
+        train_word_mappings = tf.gather(train_word_mappings, shuffled_indices)
 
         total_loss = total_seen = total_correct = 0
         for index, end in enumerate(range(batch_size, len(train_captions)+1, batch_size)):
@@ -275,13 +280,13 @@ class Model(tf.keras.Model):
 
             ## Get the current batch of data, making sure to try to predict the next word
             start = end - batch_size
-            batch_image_features = train_image_features[start:end, :]
+            batch_videos = train_videos[start:end, :]
             decoder_input = train_captions[start:end, :-1]
             decoder_labels = train_captions[start:end, 1:]
 
             ## Perform a training forward pass. Make sure to factor out irrelevant labels.
             with tf.GradientTape() as tape:
-                probs = self(batch_image_features, decoder_input)
+                probs = self(batch_videos, decoder_input)
                 # num_predictions = tf.reduce_sum(tf.cast(mask, tf.float32))
                 print(probs, decoder_labels)
                 loss = self.loss_function(probs, decoder_labels)
@@ -342,10 +347,34 @@ class Model(tf.keras.Model):
         print()        
         return avg_prp, avg_acc
 
+
 def main():
     data = load_from_pickle('./data')
     print(data)
 
+    model = Model()
+
+    loss_metric = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False) 
+    def perplexity(labels, preds):
+        entropy = tf.keras.metrics.sparse_categorical_crossentropy(labels, preds, from_logits=False, axis=-1) 
+        entropy = tf.reduce_mean(entropy)
+        perplexity = tf.exp((entropy))
+        return perplexity 
+    acc_metric  = perplexity
+
+    ## TODO: Compile your model using your choice of optimizer, loss, and metrics
+    model.compile(
+        optimizer=tf.keras.optimizers.legacy.Adam(learning_rate=0.005), 
+        loss=loss_metric, 
+        metrics=[acc_metric],
+    )
+
+    for e in range(epochs):
+        train_acc = model.train(
+            model, data["train_captions"], 
+            data["train_videos"], 
+            data["train_video_data"])
+        print(f"epoch:{e}, train_acc:{train_acc}")
 
     # model = Model()
     # model.compile(loss=loss_fn)
