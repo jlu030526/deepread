@@ -96,6 +96,11 @@ def main():
         # print(filename)
         # print(data)
         word_frame_dict = preprocess(data_dir, vid, data)
+
+        for word in word_frame_dict.keys():
+            frames = word_frame_dict[word]
+            print(frames)
+
         # print(word_frame_dict)
         # print(word_frame_dict)
         
