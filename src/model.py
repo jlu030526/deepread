@@ -176,19 +176,20 @@ import numpy as np
 from preprocess import load_from_pickle
 
 class Model(tf.keras.Model):
-    def __init__(self, vocab_size, hidden_size):
+    def __init__(self, vocab_size, hidden_size, window_size):
 
         self.vocab_size  = vocab_size
         self.hidden_size = hidden_size
+        self.window_size = window_size
         
         super().__init__()
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
         self.cnn_layer = tf.keras.Sequential([
-            tf.keras.layers.Conv3D(32, (3, 3, 3), strides = 1, input_shape=(22, 100, 100, 1), activation='relu', padding='valid'), 
+            tf.keras.layers.Conv3D(32, (3, 3, 3), strides = 1, input_shape=(125, 160, 160, 1), activation='relu', padding='valid'), 
             tf.keras.layers.MaxPool3D(pool_size=(2, 2, 2), strides=2),
             tf.keras.layers.Conv3D(64, (3, 3, 3), strides = 1, activation='relu', padding='valid'),
-            tf.keras.layers.MaxPool3D(pool_size=(2, 2, 2), strides=2),
-            tf.keras.layers.Conv3D(64, (2, 2, 2), activation='relu', strides=2),
+            # tf.keras.layers.MaxPool3D(pool_size=(2, 2, 2), strides=2),
+            # tf.keras.layers.Conv3D(64, (2, 2, 2), activation='relu', strides=2),
             tf.keras.layers.MaxPool3D(pool_size=(2, 2, 2), strides=2),
             tf.keras.layers.Dense(units=self.hidden_size, activation='relu'),
             tf.keras.layers.Dense(units=self.hidden_size)
@@ -212,11 +213,11 @@ class Model(tf.keras.Model):
 
 
     def call(self, inputs, captions):
-        outputs = inputs
         # print(outputs.shape)
-        video_embedding = self.cnn_layer(outputs)
+
+        video_embedding = self.cnn_layer(tf.expand_dims(inputs, -1))
         # print
-        video_embedding = tf.reshape(outputs, (outputs.shape[0],outputs.shape[-1], outputs.shape[2]*outputs.shape[3]))
+        # video_embedding = tf.reshape(video_embedding, (video_embedding.shape[0],video_embedding.shape[-1], video_embedding.shape[2]*video_embedding.shape[3]))
 
         caption_embedding = self.embedding(captions)
         outputs = self.rnn_layer(caption_embedding, hidden_state=video_embedding)
@@ -246,10 +247,10 @@ class Model(tf.keras.Model):
         return accuracy
     
     def loss_function(self, probs, decoder_labels):
-        # loss function
-        pass
+        loss_metric = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)(probs, decoder_labels)
+        return loss_metric
 
-    def train(self, train_captions, train_videos, train_word_mappings, batch_size=30):
+    def train(self, train_captions, train_videos, train_word_mappings, padding_index, batch_size=30):
 
         avg_loss = 0
         avg_acc = 0
@@ -269,16 +270,8 @@ class Model(tf.keras.Model):
         # train_videos = tf.gather(train_videos, shuffled_indices)
 
         total_loss = total_seen = total_correct = 0
+        print(batch_size, len(train_captions))
         for index, end in enumerate(range(batch_size, len(train_captions)+1, batch_size)):
-
-            # NOTE: 
-            # - The captions passed to the decoder should have the last token in the window removed:
-            #	 [<START> student working on homework <STOP>] --> [<START> student working on homework]
-            #
-            # - When computing loss, the decoder labels should have the first word removed:
-            #	 [<START> student working on homework <STOP>] --> [student working on homework <STOP>]
-
-            ## Get the current batch of data, making sure to try to predict the next word
             start = end - batch_size
             batch_videos = train_videos[start:end, :]
             decoder_input = train_captions[start:end, :-1]
@@ -287,9 +280,9 @@ class Model(tf.keras.Model):
             ## Perform a training forward pass. Make sure to factor out irrelevant labels.
             with tf.GradientTape() as tape:
                 probs = self(batch_videos, decoder_input)
-                # num_predictions = tf.reduce_sum(tf.cast(mask, tf.float32))
-                print(probs, decoder_labels)
+                num_predictions = decoder_labels != padding_index
                 loss = self.loss_function(probs, decoder_labels)
+                print(loss)
                 accuracy = self.accuracy_function(probs, decoder_labels)
 
             gradients = tape.gradient(loss, self.trainable_variables)
@@ -297,8 +290,9 @@ class Model(tf.keras.Model):
             
             ## Compute and report on aggregated statistics
             total_loss += loss
-            # total_seen += num_predictions
-            # total_correct += num_predictions * accuracy
+
+            total_seen += num_predictions
+            total_correct += num_predictions * accuracy
 
             avg_loss = float(total_loss / total_seen)
             avg_acc = float(total_correct / total_seen)
@@ -351,9 +345,9 @@ class Model(tf.keras.Model):
 def main():
     data = load_from_pickle('./data')
 
-    model = Model(10, 5)
+    print(len(data["idx2word"].keys()))
+    model = Model(len(data["idx2word"].keys()), 5, 20)
 
-    loss_metric = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False) 
     def perplexity(labels, preds):
         entropy = tf.keras.metrics.sparse_categorical_crossentropy(labels, preds, from_logits=False, axis=-1) 
         entropy = tf.reduce_mean(entropy)
@@ -364,7 +358,6 @@ def main():
     ## TODO: Compile your model using your choice of optimizer, loss, and metrics
     model.compile(
         optimizer=tf.keras.optimizers.legacy.Adam(learning_rate=0.005), 
-        loss=loss_metric, 
         metrics=[acc_metric],
     )
 
@@ -374,7 +367,8 @@ def main():
         train_acc = model.train(
             tf.convert_to_tensor(data["train_captions"]), 
             tf.convert_to_tensor(data["train_videos"]), 
-            data["train_video_mappings"])
+            data["word2idx"]['<pad>'],
+            data["train_video_mappings"], batch_size=15)
         print(f"epoch:{e}, train_acc:{train_acc}")
 
     # model = Model()

@@ -310,7 +310,7 @@ def read_files(src):
                     print("WHAT THE F")
 
         iteration += 1
-        if iteration == 4:
+        if iteration == 10:
             break
 
     return video_name_to_data
