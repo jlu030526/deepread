@@ -7,6 +7,8 @@ import imageio
 from moviepy.editor import VideoFileClip
 import math
 import pickle
+import random
+
 
 def preprocess(output_dir, video, timestamp_data):
     words = timestamp_data["WORD"]
@@ -99,25 +101,43 @@ def load_data():
     video_name_to_data = read_files(data_dir)
     # print(video_data_pairs)
     data_representations = []
-    all_captions = []
-    all_videos = []
 
-    for video_name in video_name_to_data.keys():
-        video = read_video(video_name + '.mp4')
-        word_frame_dict = preprocess(data_dir, video, video_name_to_data[video_name][1])
-        data_representations.append(video_name_to_data[video_name][0], word_frame_dict)
-        all_captions.append(video_name_to_data[video_name][0])
-        all_videos.append(video)
+    def get_data_from_names(image_names):
+        captions = []
+        videos = []
+        video_data = []
+        for video_name in video_name_to_data.keys():
+            video = read_video(video_name + '.mp4')
+            word_frame_dict = preprocess(data_dir, video, video_name_to_data[video_name][1])
+            data_representations.append(video_name_to_data[video_name][0], word_frame_dict)
+            captions.append(video_name_to_data[video_name][0])
+            videos.append(video)
+            video_data.append(video[video_name][1])
+        return videos, captions, video_data
+
+    shuffled_images = list(video_name_to_data.keys())
+    random.seed(0)
+    random.shuffle(shuffled_images)
+    test_image_names = shuffled_images[:len(shuffled_images) // 2]
+    train_image_names = shuffled_images[len(shuffled_images) // 2:]
+
+    test_videos, test_captions, test_video_data = get_data_from_names(test_image_names)
+    train_videos, train_captions, train_video_data = get_data_from_names(train_image_names)
+
+
 
     return dict(
-        train_captions = all_captions,
-        train_videos = all_videos,
         data_representations = data_representations,
-        
+        test_videos = test_videos,
+        test_captions = test_captions,
+        test_video_data = test_video_data,
+        train_videos = train_videos,
+        train_captions = train_captions,
+        train_video_data = train_video_data
     )
 
 
-def create_pickle(data_folder):
+def create_pickle(data_folder)
     with open(f'{data_folder}/data.p', 'wb') as pickle_file:
         pickle.dump(load_data(data_folder), pickle_file)
     print(f'Data has been dumped into {data_folder}/data.p!')
