@@ -24,7 +24,9 @@ def preprocess(output_dir, video, timestamp_data):
         frames = []
         frame_num = math.ceil(start * video.get_meta_data()['fps'])
         while frame_num < math.floor(end * video.get_meta_data()['fps']):
-            frames.append(video.get_data(frame_num))
+            frame = video.get_data(frame_num)
+            gray_frame = np.dot(frame[:,:,:3], [0.2989, 0.5870, 0.1140])
+            frames.append(gray_frame)
             frame_num += 1
         
         word_frames_dict[word] = frames
