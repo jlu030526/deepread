@@ -1,2 +1,3 @@
 # conda install conda-forge::imageio
 # conda install -c conda-forge imageio-ffmpeg 
+# conda install conda-forge::moviepy
