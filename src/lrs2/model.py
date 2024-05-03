@@ -112,7 +112,6 @@ class Model(tf.keras.Model):
             with tf.GradientTape() as tape:
                 probs = self(batch_image_features, decoder_input)
                 # num_predictions = tf.reduce_sum(tf.cast(mask, tf.float32))
-                print(probs, decoder_labels)
                 loss = self.loss_function(probs, decoder_labels)
                 accuracy = self.accuracy_function(probs, decoder_labels)
 

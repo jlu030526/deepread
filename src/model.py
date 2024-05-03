@@ -350,7 +350,6 @@ class Model(tf.keras.Model):
 
 def main():
     data = load_from_pickle('./data')
-    print(data)
 
     model = Model()
 

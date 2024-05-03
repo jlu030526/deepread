@@ -226,6 +226,15 @@ import collections
 import random
 
 
+def preprocess_captions(captions):
+    for i, caption in enumerate(captions):
+        # Join those words into a string
+        caption_new = ['<start>'] + caption + ['<end>']
+      
+        # Replace the old caption in the captions list with this new cleaned caption
+        captions[i] = caption_new
+
+
 def preprocess(output_dir, video, timestamp_data):
     words = timestamp_data["WORD"]
     start = timestamp_data["START"]
@@ -279,25 +288,30 @@ def read_video(video_filepath):
 
 def read_files(src):
     video_name_to_data = {}
-    for file in os.listdir(src):
-        if '.txt' in file:
-            video_name = os.path.splitext(src+file)[0]
-            video_filepath = os.path.splitext(src+file)[0] + ".mp4"
-            text_filepath = os.path.splitext(src+file)[0] + ".txt"
+    iteration = 0
+    for directory in os.listdir(src):
+        for file in os.listdir(src + '' + directory):
+            if '.txt' in file:
+                video_name = os.path.splitext(src + directory + '/' + file)[0]
+                text_filepath = video_name + '.txt'
 
-            first_line = None
-            with open(text_filepath, 'r') as f:
-                first_line = f.readline().split()[1:]
+                first_line = None
+                with open(text_filepath, 'r') as f:
+                    first_line = f.readline().split()[1:]
 
-            data = pd.read_csv(
-                src + file, sep=" ", 
-                usecols=["WORD", "START", "END", "ASDSCORE"],
-                skiprows=3)
-            
-            video_name_to_data[video_name] = (first_line, data)
+                data = pd.read_csv(
+                    text_filepath, sep=" ", 
+                    usecols=["WORD", "START", "END", "ASDSCORE"],
+                    skiprows=3)
+                
+                video_name_to_data[video_name] = (first_line, data)
 
-            if len(data) == 0:
-                print("WHAT THE F")
+                if len(data) == 0:
+                    print("WHAT THE F")
+
+        iteration += 1
+        if iteration == 10:
+            break
 
     return video_name_to_data
 
@@ -310,7 +324,7 @@ def read_file(file_path):
     return data
 
 def load_data(data_folder):
-    data_dir = './data/lrs2/sample/'
+    data_dir = './data/pretrain/'
     # vid_file_path = data_dir + '00001.mp4'
     # data_file_path = data_dir + '00001.txt'
 
@@ -344,6 +358,9 @@ def load_data(data_folder):
     test_videos, test_captions, test_video_mappings = get_data_from_names(test_image_names)
     train_videos, train_captions, train_video_mappings = get_data_from_names(train_image_names)
 
+    preprocess_captions(test_captions)
+    preprocess_captions(train_captions)
+
     word_count = collections.Counter()
     for caption in train_captions:
         word_count.update(caption)
@@ -354,8 +371,8 @@ def load_data(data_folder):
                 if word_count[word] <= minimum_frequency:
                     caption[index] = '<unk>'
 
-    unk_captions(train_captions, 10)
-    unk_captions(test_captions, 10)
+    unk_captions(train_captions, 5)
+    unk_captions(test_captions, 5)
 
 
     word2idx = {}
@@ -370,7 +387,7 @@ def load_data(data_folder):
                 vocab_size += 1
     for caption in test_captions:
         for index, word in enumerate(caption):
-            caption[index] = word2idx[word] 
+            caption[index] = word2idx[word]
 
     return dict(
         test_videos = test_videos,
