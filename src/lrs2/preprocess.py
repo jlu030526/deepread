@@ -56,6 +56,13 @@ def read_files(src):
         pair = []
         if '.txt' in file:
             video_filepath = os.path.splitext(src+file)[0] + ".mp4"
+            text_filepath = os.path.splitext(src+file)[0] + '.txt'
+
+            first_line = None
+            with open(text_filepath, 'r') as f:
+                first_line = " ".join(f.readline().split()[1:])
+
+
             data = pd.read_csv(
                 src + file, sep=" ", 
                 usecols=["WORD", "START", "END", "ASDSCORE"],
@@ -64,6 +71,7 @@ def read_files(src):
             video = read_video(video_filepath)
             pair.append(data)
             pair.append(video)
+            pair.append(first_line)
 
             if len(data) == 0:
                 print("WHAT THE F")
@@ -90,17 +98,13 @@ def main():
 
     video_data_pairs = read_files(data_dir)
     # print(video_data_pairs)
+    data_representations = []
 
-    for [data, vid] in video_data_pairs:
+    for [data, vid, sentence] in video_data_pairs:
         
-        # print(filename)
-        # print(data)
+
         word_frame_dict = preprocess(data_dir, vid, data)
-
-        for word in word_frame_dict.keys():
-            frames = word_frame_dict[word]
-            print(frames)
-
+        data_representations.append(sentence, word_frame_dict)
         # print(word_frame_dict)
         # print(word_frame_dict)
         
