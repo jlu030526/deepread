@@ -1,0 +1,2 @@
+# conda install conda-forge::imageio
+# conda install -c conda-forge imageio-ffmpeg 
