@@ -133,14 +133,14 @@ def load_data(data_folder):
     for caption in train_captions:
         word_count.update(caption)
 
-    def unk_captions(captions, minimum_frequency):
-        for caption in captions:
-            for index, word in enumerate(caption):
-                if word_count[word] <= minimum_frequency:
-                    caption[index] = '<unk>'
+    # def unk_captions(captions, minimum_frequency):
+    #     for caption in captions:
+    #         for index, word in enumerate(caption):
+    #             if word_count[word] <= minimum_frequency:
+    #                 caption[index] = '<unk>'
 
-    unk_captions(train_captions, 10)
-    unk_captions(test_captions, 10)
+    # unk_captions(train_captions, 10)
+    # unk_captions(test_captions, 10)
 
 
     word2idx = {}
@@ -163,11 +163,17 @@ def load_data(data_folder):
         test_video_mappings = test_video_mappings,
         train_videos = train_videos,
         train_captions = train_captions,
-        train_video_data = train_video_mappings,
+        train_video_mappings = train_video_mappings,
         word2idx = word2idx,
         idx2word = {v:k for k,v in word2idx.items()},
     )
 
+
+def load_from_pickle(data_file_path):
+    with open(f'{data_file_path}/data.p', 'rb') as pickle_file:
+        data = pickle.load(pickle_file)
+
+    return data
 
 def create_pickle(data_folder):
     file_to_save = './data'
