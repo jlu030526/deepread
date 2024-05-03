@@ -310,7 +310,7 @@ def read_files(src):
                     print("WHAT THE F")
 
         iteration += 1
-        if iteration == 10:
+        if iteration == 4:
             break
 
     return video_name_to_data
@@ -325,6 +325,7 @@ def read_file(file_path):
 
 def load_data(data_folder):
     data_dir = './data/pretrain/'
+    window_size = 20
     # vid_file_path = data_dir + '00001.mp4'
     # data_file_path = data_dir + '00001.txt'
 
@@ -332,6 +333,11 @@ def load_data(data_folder):
     # preprocess(data_dir, vid_file_path, data)
 
     video_name_to_data = read_files(data_dir)
+    video_name_to_data_cleaned = {}
+    for name in video_name_to_data.keys():
+        if len(video_name_to_data[name][0]) < window_size:
+            video_name_to_data_cleaned[name] = video_name_to_data[name]
+
     # print(video_data_pairs)
     data_representations = []
 
@@ -341,15 +347,15 @@ def load_data(data_folder):
         video_word_mappings = []
         for video_name in video_names:
             video = read_video(video_name + '.mp4')
-            word_frame_dict, all_frames = preprocess(data_dir, video, video_name_to_data[video_name][1])
-            data_representations.append((video_name_to_data[video_name][0], word_frame_dict))
+            word_frame_dict, all_frames = preprocess(data_dir, video, video_name_to_data_cleaned[video_name][1])
+            data_representations.append((video_name_to_data_cleaned[video_name][0], word_frame_dict))
 
-            captions.append(video_name_to_data[video_name][0])
+            captions.append(video_name_to_data_cleaned[video_name][0])
             videos.append(all_frames)
             video_word_mappings.append(word_frame_dict)
         return videos, captions, video_word_mappings
 
-    shuffled_images = list(video_name_to_data.keys())
+    shuffled_images = list(video_name_to_data_cleaned.keys())
     random.seed(0)
     random.shuffle(shuffled_images)
     test_image_names = shuffled_images[:len(shuffled_images) // 2]
@@ -374,6 +380,28 @@ def load_data(data_folder):
     unk_captions(train_captions, 5)
     unk_captions(test_captions, 5)
 
+    def pad_captions(captions, window_size):
+        for caption in captions:
+            caption += (window_size + 1 - len(caption)) * ['<pad>'] 
+    
+    pad_captions(train_captions, window_size)
+    pad_captions(test_captions,  window_size)
+
+    def max_frames(videos):
+        max_frames = 0
+        for video in videos:
+            max_frames = max(len(video), max_frames)
+        return max_frames + 1
+
+    def pad_videos(videos, max_frames):
+        for i, v in enumerate(videos):
+            pad_length = max_frames - len(v)
+            if pad_length > 0:
+                zeros = np.zeros((pad_length, *v[0].shape))
+                videos[i] = np.concatenate((v, zeros), axis=0)
+    
+    pad_videos(train_videos, max_frames(train_videos))
+    pad_videos(test_videos, max_frames(test_videos))
 
     word2idx = {}
     vocab_size = 0

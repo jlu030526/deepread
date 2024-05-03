@@ -266,7 +266,7 @@ class Model(tf.keras.Model):
         train_captions = tf.gather(train_captions, shuffled_indices)
         # gather with image_features, shuffledcaptions
         train_videos = tf.gather(train_videos, shuffled_indices)
-        train_word_mappings = tf.gather(train_word_mappings, shuffled_indices)
+        # train_videos = tf.gather(train_videos, shuffled_indices)
 
         total_loss = total_seen = total_correct = 0
         for index, end in enumerate(range(batch_size, len(train_captions)+1, batch_size)):
@@ -351,7 +351,7 @@ class Model(tf.keras.Model):
 def main():
     data = load_from_pickle('./data')
 
-    model = Model()
+    model = Model(10, 5)
 
     loss_metric = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False) 
     def perplexity(labels, preds):
@@ -368,11 +368,13 @@ def main():
         metrics=[acc_metric],
     )
 
+    epochs = 5
+
     for e in range(epochs):
         train_acc = model.train(
-            model, data["train_captions"], 
-            data["train_videos"], 
-            data["train_video_data"])
+            tf.convert_to_tensor(data["train_captions"]), 
+            tf.convert_to_tensor(data["train_videos"]), 
+            data["train_video_mappings"])
         print(f"epoch:{e}, train_acc:{train_acc}")
 
     # model = Model()
