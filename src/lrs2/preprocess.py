@@ -4,13 +4,9 @@ import os
 import pandas as pd
 import imageio
 # from pylab import *
-import pylab
-import wave
-import moviepy
 from moviepy.editor import VideoFileClip
-from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 import math
-import av
+import pickle
 
 def preprocess(output_dir, video, timestamp_data):
     words = timestamp_data["WORD"]
@@ -98,7 +94,7 @@ def read_file(file_path):
     
     return data
 
-def main():
+def load_data():
     data_dir = './data/lrs2/sample/'
     # vid_file_path = data_dir + '00001.mp4'
     # data_file_path = data_dir + '00001.txt'
@@ -109,23 +105,30 @@ def main():
     video_data_pairs = read_files(data_dir)
     # print(video_data_pairs)
     data_representations = []
+    train_captions = []
+    train_videos = []
 
     for [data, vid, sentence] in video_data_pairs:
         
-
         word_frame_dict = preprocess(data_dir, vid, data)
         data_representations.append(sentence, word_frame_dict)
-        # print(word_frame_dict)
-        # print(word_frame_dict)
-        
-    #     image = vid.get_data(10)
-    #     fig = pylab.figure()
-    #     fig.suptitle('image #{}'.format(10), fontsize=20)
-    #     pylab.imshow(image)
-    #     pylab.show()
-    #     print(data)
-    # preprocess(data_files)
+        train_captions.append(sentence)
+        train_videos.append(vid)
 
+    return dict(
+        train_captions = train_captions,
+        train_videos = train_videos,
+        data_representations = data_representations,
+        
+    )
+
+
+
+def create_pickle(data_folder):
+    with open(f'{data_folder}/data.p', 'wb') as pickle_file:
+        pickle.dump(load_data(data_folder), pickle_file)
+    print(f'Data has been dumped into {data_folder}/data.p!')
 
 if __name__ == '__main__':
-    main()
+    data_dir = './data/lrs2/sample/'
+    create_pickle(load_data(data_dir))

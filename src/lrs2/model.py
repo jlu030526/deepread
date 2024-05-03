@@ -70,82 +70,67 @@ class Model(tf.keras.Model):
         accuracy = correct/labels.shape[0]
         return accuracy
 
-# def train(model, train_inputs, train_labels):
-def train(model, trainloader):
-    # indices = tf.range(start=0, limit=tf.shape(train_inputs)[0], dtype=tf.int32)
-    # shuffled_indices = tf.random.shuffle(indices)
+def train(self, train_captions, train_image_features, padding_index, batch_size=30):
 
-    # train_inputs = tf.gather(train_inputs, shuffled_indices)
-    # train_labels = tf.gather(train_labels, shuffled_indices)
-    accuracy_sum = 0
-    iterations = 0
-    # for b, b1 in enumerate(range(model.batch_size, train_inputs.shape[0] + 1, model.batch_size)):
-    for i, batch in enumerate(trainloader):
-        # print(f"iteration:{i}")
-        # print("here")
-        X = batch[0]
-        Y = batch[1]
-        # b0 = b1 - model.batch_size
-        with tf.GradientTape() as tape:
-            y_pred = model((X))
-            # print(y_pred, Y)
-            Y = tf.cast(Y, tf.int64)
-            loss = model.loss(y_pred, Y)
-            # print('loss: ', loss)
-            acc = model.accuracy_function(y_pred, Y)
-            accuracy_sum += acc
-        gradients = tape.gradient(loss, model.trainable_variables)
-        # print(gradients)
-        model.optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+        avg_loss = 0
+        avg_acc = 0
+        avg_prp = 0     
+        num_batches = int(len(train_captions) / batch_size)
 
+        # get rainge of train_captions
+        indices = tf.range(train_captions.shape[0])
 
-    average_accuracy = accuracy_sum / i * 1.0
-    return average_accuracy
+        # get shufffled indices
+        shuffled_indices = tf.random.shuffle(indices)
 
-def embedding_train(model, trainloader):
-    for batch in trainloader:
-        X = batch[0]
-        Y = batch[1]
-        iterations += 1
-        # b0 = b1 - model.batch_size
-        with tf.GradientTape() as tape:
-            y_pred = model(X)
-            loss = model.loss(y_pred, Y)
-            acc = model.accuracy(y_pred, Y)
-            accuracy_sum += acc
-        gradients = tape.gradient(loss, model.trainable_variables)
-        model.optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+        # gather traincaptions, indices
+        train_captions = tf.gather(train_captions, shuffled_indices)
+        # gather with image_features, shuffledcaptions
+        train_image_features = tf.gather(train_image_features, shuffled_indices)
 
-    average_accuracy = accuracy_sum / iterations * 1.0
-    return average_accuracy
+        total_loss = total_seen = total_correct = 0
+        for index, end in enumerate(range(batch_size, len(train_captions)+1, batch_size)):
 
+            # NOTE: 
+            # - The captions passed to the decoder should have the last token in the window removed:
+            #	 [<START> student working on homework <STOP>] --> [<START> student working on homework]
+            #
+            # - When computing loss, the decoder labels should have the first word removed:
+            #	 [<START> student working on homework <STOP>] --> [student working on homework <STOP>]
 
+            ## Get the current batch of data, making sure to try to predict the next word
+            start = end - batch_size
+            batch_image_features = train_image_features[start:end, :]
+            decoder_input = train_captions[start:end, :-1]
+            decoder_labels = train_captions[start:end, 1:]
 
-def test(model, testloader):
-    accuracy_sum = 0
-    iterations = 0
-    # for b, b1 in enumerate(range(model.batch_size, test_inputs.shape[0] + 1, model.batch_size)):
-    for batch in testloader:
-        iterations += 1
-        # b0 = b1 - model.batch_size
-        X = batch[0]
-        Y = batch[1]
-        Y = tf.cast(Y, tf.int64)
-        y_pred = model(X)
+            ## Perform a training forward pass. Make sure to factor out irrelevant labels.
+            with tf.GradientTape() as tape:
+                probs = self(batch_image_features, decoder_input)
+                mask = decoder_labels != padding_index
+                num_predictions = tf.reduce_sum(tf.cast(mask, tf.float32))
+                print(probs, decoder_labels)
+                loss = self.loss_function(probs, decoder_labels, mask)
+                accuracy = self.accuracy_function(probs, decoder_labels, mask)
 
-        acc = model.accuracy_function(y_pred, Y)
-        accuracy_sum += acc
+            gradients = tape.gradient(loss, self.trainable_variables)
+            self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
+            
+            ## Compute and report on aggregated statistics
+            total_loss += loss
+            total_seen += num_predictions
+            total_correct += num_predictions * accuracy
 
-    average_accuracy = accuracy_sum / iterations * 1.0
-    return average_accuracy
+            avg_loss = float(total_loss / total_seen)
+            avg_acc = float(total_correct / total_seen)
+            avg_prp = np.exp(avg_loss)
+            print(f"\r[Valid {index+1}/{num_batches}]\t loss={avg_loss:.3f}\t acc: {avg_acc:.3f}\t perp: {avg_prp:.3f}", end='')
+
+        print()
+        return avg_loss, avg_acc, avg_prp
 
 def main():
     train_dataset, test_dataset = load_data(batch_size=5)
-    # print(train_dataset, test_dataset)
-    # train_inputs = train_dataset[0]
-    # train_labels = train_dataset[1]
-    # test_inputs = test_dataset[0]
-    # test_labels = test_dataset[1]
 
     model = Model()
     model.compile(loss=loss_fn)
