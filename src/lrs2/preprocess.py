@@ -64,8 +64,11 @@ def read_files(src):
             video = read_video(video_filepath)
             pair.append(data)
             pair.append(video)
+
+            if len(data) == 0:
+                print("WHAT THE F")
         
-        vid_data_pairs.append(pair)
+            vid_data_pairs.append(pair)
 
     return vid_data_pairs
 
@@ -86,9 +89,10 @@ def main():
     # preprocess(data_dir, vid_file_path, data)
 
     video_data_pairs = read_files(data_dir)
-    print(video_data_pairs)
+    # print(video_data_pairs)
 
     for [data, vid] in video_data_pairs:
+        
         # print(filename)
         # print(data)
         word_frame_dict = preprocess(data_dir, vid, data)
