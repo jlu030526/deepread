@@ -23,7 +23,7 @@ def preprocess(output_dir, video, timestamp_data):
         frames = []
         frame_num = int(start * video.get_meta_data()['fps'])
         while frame_num < int(end * video.get_meta_data()['fps']):
-            frames += video.get_data(frame_num)
+            frames.append(video.get_data(frame_num))
             frame_num += video.get_meta_data()['fps']
         
         word_frames_dict[word] = frames
@@ -43,31 +43,31 @@ def read_audios(video_file):
 
     # audio = wave.open(audio_file, 'rb')
 
-def read_videos(src):
-    videos = []
-    for file in os.listdir(src):
-        if '.mp4' in file:
-            videos.append(src+file)
-            # vid = imageio.get_reader(src+file, 'ffmpeg')
-            # videos.append(vid)
-            # read_audios(src+file)
-            # wave.open('ffaudio.wav', 'rb')
+def read_video(video_filepath):
     
-    return videos
+    vid = imageio.get_reader(video_filepath, 'ffmpeg')
+
+    return vid
 
 
 def read_files(src):
-    files = []
+    vid_data_pairs = []
     for file in os.listdir(src):
+        pair = []
         if '.txt' in file:
+            video_filepath = os.path.splitext(src+file)[0] + ".mp4"
             data = pd.read_csv(
                 src + file, sep=" ", 
                 usecols=["WORD", "START", "END", "ASDSCORE"],
                 skiprows=3)
             # print(data)
-            files.append(data)
+            video = read_video(video_filepath)
+            pair.append(data)
+            pair.append(video)
+        
+        vid_data_pairs.append(pair)
 
-    return files
+    return vid_data_pairs
 
 def read_file(file_path):
     data = pd.read_csv(
@@ -79,25 +79,27 @@ def read_file(file_path):
 
 def main():
     data_dir = './data/lrs2/sample/'
-    vid_file_path = data_dir + '00001.mp4'
-    data_file_path = data_dir + '00001.txt'
+    # vid_file_path = data_dir + '00001.mp4'
+    # data_file_path = data_dir + '00001.txt'
 
-    data = read_file(data_file_path)
-    preprocess(data_dir, vid_file_path, data)
+    # data = read_file(data_file_path)
+    # preprocess(data_dir, vid_file_path, data)
 
-    # data_files = read_files(data_dir)
-    # vids = read_videos(data_dir)
-    # video_data_pairs = zip(os.listdir(data_dir), vids, data_files)
-    # for filename, vid, data in video_data_pairs:
-    #     print(filename)
-    #     word_frame_dict = preprocess(data_dir, vid, data)
-        
-        # image = vid.get_data(10)
-        # fig = pylab.figure()
-        # fig.suptitle('image #{}'.format(10), fontsize=20)
-        # pylab.imshow(image)
-        # pylab.show()
+    video_data_pairs = read_files(data_dir)
+    print(video_data_pairs)
+
+    for [data, vid] in video_data_pairs:
+        # print(filename)
         # print(data)
+        word_frame_dict = preprocess(data_dir, vid, data)
+        # print(word_frame_dict)
+        
+    #     image = vid.get_data(10)
+    #     fig = pylab.figure()
+    #     fig.suptitle('image #{}'.format(10), fontsize=20)
+    #     pylab.imshow(image)
+    #     pylab.show()
+    #     print(data)
     # preprocess(data_files)
 
 
