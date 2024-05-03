@@ -17,7 +17,7 @@ def preprocess(output_dir, video, timestamp_data):
     end = timestamp_data["END"]
 
     word_frames_dict = {}
-    frames = []
+    all_frames = []
     for word, start, end in zip(words, start, end):
         
         frames = []
@@ -29,11 +29,12 @@ def preprocess(output_dir, video, timestamp_data):
             frame_num += 1
         
         word_frames_dict[word] = frames
+        all_frames += frames
 
         # out_file = output_dir+word+".mp4"
         # ffmpeg_extract_subclip(video, start, end, targetname=out_file)
 
-    return word_frames_dict
+    return word_frames_dict, all_frames
 
 def read_audios(video_file):
     audio_file = os.path.splitext(video_file)[0] + '.wav'
@@ -48,6 +49,8 @@ def read_audios(video_file):
 def read_video(video_filepath):
     
     vid = imageio.get_reader(video_filepath, 'ffmpeg')
+
+    # for i in range(len(video.get_meta_data()))
 
     # container = av.open(video_filepath)
 
@@ -106,15 +109,14 @@ def load_data(data_folder):
     def get_data_from_names(video_names):
         captions = []
         videos = []
-        video_data = []
         video_word_mappings = []
         for video_name in video_names:
             video = read_video(video_name + '.mp4')
-            word_frame_dict = preprocess(data_dir, video, video_name_to_data[video_name][1])
+            word_frame_dict, all_frames = preprocess(data_dir, video, video_name_to_data[video_name][1])
             data_representations.append((video_name_to_data[video_name][0], word_frame_dict))
 
             captions.append(video_name_to_data[video_name][0])
-            videos.append(video)
+            videos.append(all_frames)
             video_word_mappings.append(word_frame_dict)
         return videos, captions, video_word_mappings
 
@@ -155,8 +157,6 @@ def load_data(data_folder):
         for index, word in enumerate(caption):
             caption[index] = word2idx[word] 
 
-    print(type(train_videos), type(test_video_mappings), type(test_videos))
-
     return dict(
         test_videos = test_videos,
         test_captions = test_captions,
@@ -171,7 +171,6 @@ def load_data(data_folder):
 
 def create_pickle(data_folder):
     with open(f'{data_folder}/data.p', 'wb') as pickle_file:
-        print(type(load_data(data_folder)))
         pickle.dump(load_data(data_folder), pickle_file)
     # print(f'Data has been dumped into {data_folder}/data.p!')
 
