@@ -41,7 +41,6 @@ class Model(tf.keras.Model):
         # print(outputs.shape)
 
         video_embedding = self.cnn_layer(tf.expand_dims(inputs, -1))
-        print(video_embedding.shape)
         # video_embedding = tf.reshape(video_embedding, (video_embedding.shape[0],video_embedding.shape[-1], video_embedding.shape[2]*video_embedding.shape[3]))
 
         caption_embedding = self.embedding(captions)
@@ -113,26 +112,26 @@ class Model(tf.keras.Model):
         print()
         return avg_loss, avg_acc, avg_prp
     
-    def test(self, test_captions, train_videos, train_video_mappings, padding_index, batch_size=30):
+    def test(self, test_captions, test_videos, test_video_mappings, padding_index, batch_size=30):
         avg_loss = 0
         avg_acc = 0
         avg_prp = 0     
-        num_batches = int(len(train_captions) / batch_size)
+        num_batches = int(len(test_captions) / batch_size)
 
 
-        indices = tf.range(train_captions.shape[0])
+        indices = tf.range(test_captions.shape[0])
 
         shuffled_indices = tf.random.shuffle(indices)
 
-        train_captions = tf.gather(train_captions, shuffled_indices)
-        train_videos = tf.gather(train_videos, shuffled_indices)
+        test_captions = tf.gather(test_captions, shuffled_indices)
+        test_videos = tf.gather(test_videos, shuffled_indices)
 
         total_loss = total_seen = total_correct = 0
-        for index, end in enumerate(range(batch_size, len(train_captions)+1, batch_size)):
+        for index, end in enumerate(range(batch_size, len(test_captions)+1, batch_size)):
             start = end - batch_size
-            batch_videos = train_videos[start:end, :]
-            decoder_input = train_captions[start:end, :-1]
-            decoder_labels = train_captions[start:end, 1:]
+            batch_videos = test_videos[start:end, :]
+            decoder_input = test_captions[start:end, :-1]
+            decoder_labels = test_captions[start:end, 1:]
 
             probs = self(batch_videos, decoder_input)
             mask = decoder_labels != padding_index
@@ -153,19 +152,16 @@ class Model(tf.keras.Model):
         print()
         return avg_loss, avg_acc, avg_prp
 
+def save_model(model, dest):
+    model.save(dest)
 
 def main():
     data = load_from_pickle('./data')
+    model_path = './output/model.keras'
 
 
     model = Model(len(data["idx2word"].keys()), hidden_size=32, window_size=20)
 
-    # def perplexity(labels, preds):
-    #     entropy = tf.keras.metrics.sparse_categorical_crossentropy(labels, preds, from_logits=False, axis=-1) 
-    #     entropy = tf.reduce_mean(entropy)
-    #     perplexity = tf.exp((entropy))
-    #     return perplexity 
-    # acc_metric  = perplexity
 
     ## TODO: Compile your model using your choice of optimizer, loss, and metrics
     model.compile(
@@ -173,7 +169,7 @@ def main():
         # metrics=[acc_metric],
     )
 
-    epochs = 5
+    epochs = 2
 
     for e in range(epochs):
         train_acc = model.train(
@@ -189,17 +185,8 @@ def main():
     )
     print(f'test acc{test_acc}')
 
-    # model = Model()
-    # model.compile(loss=loss_fn)
+    model.save('./output/lipReaderModel.keras')
 
-    # epochs=10
-    # for e in range(epochs):
-    #     train_acc = model.train(model, data["train_captions"], data["train_videos"], data["train_video_data"])
-    #     print(f"epoch:{e}, train_acc:{train_acc}")
-
-    # # print('accuracy: ', train_acc)
-    # acc = model.test(model, data["test_captions"], data["test_videos"], data["test_video_mappings"])
-    # print(f"test_acc:{acc}")
 
 if __name__ == '__main__':
     main()
