@@ -14,7 +14,7 @@ class Model(tf.keras.Model):
         super().__init__()
         self.optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=0.01)
         self.cnn_layer = tf.keras.Sequential([
-            tf.keras.layers.Conv3D(5, (2, 2, 2), strides = 1, input_shape=(125, 160, 160, 1), activation='relu', padding='valid'), 
+            tf.keras.layers.Conv3D(5, (2, 2, 2), strides = 1, input_shape=(169, 160, 160, 1), activation='relu', padding='valid'), 
             tf.keras.layers.MaxPool3D(pool_size=(2, 2, 2), strides=2),
             tf.keras.layers.Conv3D(10, (3, 3, 3), strides = 1, activation='relu', padding='valid'),
             tf.keras.layers.MaxPool3D(pool_size=(2, 2, 2), strides=2),
@@ -28,7 +28,7 @@ class Model(tf.keras.Model):
 
         self.flatten = tf.keras.layers.Flatten()
 
-        self.rnn_layer = tf.keras.layers.LSTM(self.hidden_size, return_sequences=True)
+        self.rnn_layer = tf.keras.layers.GRU(self.hidden_size, return_sequences=True)
 
         self.ff_layer = tf.keras.Sequential([
             tf.keras.layers.Dense(units=self.hidden_size, activation='relu'),
@@ -41,7 +41,7 @@ class Model(tf.keras.Model):
         # print(outputs.shape)
 
         video_embedding = self.cnn_layer(tf.expand_dims(inputs, -1))
-        # print
+        print(video_embedding.shape)
         # video_embedding = tf.reshape(video_embedding, (video_embedding.shape[0],video_embedding.shape[-1], video_embedding.shape[2]*video_embedding.shape[3]))
 
         caption_embedding = self.embedding(captions)
@@ -158,7 +158,7 @@ def main():
     data = load_from_pickle('./data')
 
 
-    model = Model(len(data["idx2word"].keys()), 5, 20)
+    model = Model(len(data["idx2word"].keys()), hidden_size=32, window_size=20)
 
     # def perplexity(labels, preds):
     #     entropy = tf.keras.metrics.sparse_categorical_crossentropy(labels, preds, from_logits=False, axis=-1) 

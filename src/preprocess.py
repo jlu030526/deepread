@@ -12,6 +12,7 @@ import random
 
 
 def preprocess_captions(captions):
+    print("here?")
     for i, caption in enumerate(captions):
         # Join those words into a string
         caption_new = ['<start>'] + caption + ['<end>']
@@ -73,8 +74,11 @@ def read_video(video_filepath):
 
 def read_files(src):
     video_name_to_data = {}
-    iteration = 0
-    for directory in os.listdir(src):
+    # iteration = 0
+    max = 20
+
+    for i in range(max):
+        directory = os.listdir(src)[i]
         for file in os.listdir(src + '' + directory):
             if '.txt' in file:
                 video_name = os.path.splitext(src + directory + '/' + file)[0]
@@ -91,22 +95,20 @@ def read_files(src):
                 
                 video_name_to_data[video_name] = (first_line, data)
 
-                if len(data) == 0:
-                    print("WHAT THE F")
-
-        iteration += 1
-        if iteration == 50:
-            break
+        print(f'Data for iteration:{i} read!')
+        # iteration += 1
+        # if iteration == 50:
+        #     break
 
     return video_name_to_data
 
-def read_file(file_path):
-    data = pd.read_csv(
-            file_path, sep=" ", 
-            usecols=["WORD", "START", "END", "ASDSCORE"],
-            skiprows=3)
+# def read_file(file_path):
+#     data = pd.read_csv(
+#             file_path, sep=" ", 
+#             usecols=["WORD", "START", "END", "ASDSCORE"],
+#             skiprows=3)
     
-    return data
+#     return data
 
 def load_data(data_folder):
     data_dir = './data/pretrain/'
@@ -131,6 +133,7 @@ def load_data(data_folder):
         videos = []
         video_word_mappings = []
         for video_name in video_names:
+            # print(video_name)
             video = read_video(video_name + '.mp4')
             word_frame_dict, all_frames = preprocess(data_dir, video, video_name_to_data_cleaned[video_name][1])
             data_representations.append((video_name_to_data_cleaned[video_name][0], word_frame_dict))
@@ -149,6 +152,7 @@ def load_data(data_folder):
     test_videos, test_captions, test_video_mappings = get_data_from_names(test_image_names)
     train_videos, train_captions, train_video_mappings = get_data_from_names(train_image_names)
 
+    print("before preprocess")
     preprocess_captions(test_captions)
     preprocess_captions(train_captions)
 
@@ -162,8 +166,9 @@ def load_data(data_folder):
                 if word_count[word] <= minimum_frequency:
                     caption[index] = '<unk>'
 
-    unk_captions(train_captions, 5)
-    unk_captions(test_captions, 5)
+    min_freq = 10
+    unk_captions(train_captions, min_freq)
+    unk_captions(test_captions, min_freq)
 
     def pad_captions(captions, window_size):
         for caption in captions:
@@ -178,16 +183,19 @@ def load_data(data_folder):
             max_frames = max(len(video), max_frames)
         return max_frames + 1
 
+    # print("bruh")
     def pad_videos(videos, max_frames):
         for i, v in enumerate(videos):
+            # print(i)
             pad_length = max_frames - len(v)
+            zeros = np.zeros((pad_length, *v[0].shape))
             if pad_length > 0:
-                zeros = np.zeros((pad_length, *v[0].shape))
+                # zeros = np.zeros((pad_length, *v[0].shape))
                 videos[i] = np.concatenate((v, zeros), axis=0)
     
     pad_videos(train_videos, max_frames(train_videos))
     pad_videos(test_videos, max_frames(test_videos))
-
+    # print("huh")
     word2idx = {}
     vocab_size = 0
     for caption in train_captions:
@@ -201,6 +209,8 @@ def load_data(data_folder):
     for caption in test_captions:
         for index, word in enumerate(caption):
             caption[index] = word2idx[word]
+
+    print("what")
 
     return dict(
         test_videos = test_videos,
