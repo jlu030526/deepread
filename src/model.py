@@ -157,10 +157,14 @@ def save_model(model, dest):
 
 def main():
     data = load_from_pickle('./data')
-    model_path = './output/model.keras'
+    model_path = './output/lipReaderModel.keras'
 
-
-    model = Model(len(data["idx2word"].keys()), hidden_size=32, window_size=20)
+    if os.path.exists(model_path):
+        model = tf.keras.models.load_model(model_path)
+        print("Loading saved model")
+    else:
+        model = Model(len(data["idx2word"].keys()), hidden_size=32, window_size=20)
+        print("Creating new model")
 
 
     ## TODO: Compile your model using your choice of optimizer, loss, and metrics
@@ -169,7 +173,7 @@ def main():
         # metrics=[acc_metric],
     )
 
-    epochs = 2
+    epochs = 3
 
     for e in range(epochs):
         train_acc = model.train(
@@ -178,12 +182,12 @@ def main():
             data["train_video_mappings"], data["word2idx"]['<pad>'], batch_size=15)
         print(f"epoch:{e}, train_acc:{train_acc}")
     
-    test_acc = model.test(
-        tf.convert_to_tensor(data["test_captions"]), 
-        tf.convert_to_tensor(data["test_videos"]), 
-        data["test_video_mappings"], data["word2idx"]['<pad>'], batch_size=15
-    )
-    print(f'test acc{test_acc}')
+    # test_acc = model.test(
+    #     tf.convert_to_tensor(data["test_captions"]), 
+    #     tf.convert_to_tensor(data["test_videos"]), 
+    #     data["test_video_mappings"], data["word2idx"]['<pad>'], batch_size=15
+    # )
+    # print(f'test acc{test_acc}')
 
     model.save('./output/lipReaderModel.keras')
 
