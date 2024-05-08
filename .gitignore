@@ -1,3 +1,4 @@
 #exclude data from git
 data/
 output/
+/__pycache__/

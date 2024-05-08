@@ -14,17 +14,15 @@ class Model(tf.keras.Model):
         super().__init__()
         self.optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=0.01)
         self.cnn_layer = tf.keras.Sequential([
-            tf.keras.layers.Conv3D(5, (2, 2, 2), strides = 1, input_shape=(169, 160, 160, 1), activation='relu', padding='valid'), 
+            tf.keras.layers.Conv3D(5, (2, 2, 2), strides = 1, input_shape=(200, 160, 160, 1), activation='relu', padding='valid'), 
             tf.keras.layers.MaxPool3D(pool_size=(2, 2, 2), strides=2),
             tf.keras.layers.Conv3D(10, (3, 3, 3), strides = 1, activation='relu', padding='valid'),
             tf.keras.layers.MaxPool3D(pool_size=(2, 2, 2), strides=2),
-            # tf.keras.layers.MaxPool3D(pool_size=(2, 2, 2), strides=2),
-            # tf.keras.layers.Conv3D(64, (2, 2, 2), activation='relu', strides=2),
             tf.keras.layers.Flatten(),
             tf.keras.layers.Dense(units=self.hidden_size)
         ])
 
-        self.embedding = tf.keras.layers.Embedding(self.vocab_size, self.hidden_size) # 5 is hyperparam
+        self.embedding = tf.keras.layers.Embedding(self.vocab_size, self.hidden_size)
 
         self.flatten = tf.keras.layers.Flatten()
 
@@ -38,25 +36,15 @@ class Model(tf.keras.Model):
 
 
     def call(self, inputs, captions):
-        # print(outputs.shape)
-
         video_embedding = self.cnn_layer(tf.expand_dims(inputs, -1))
-        # video_embedding = tf.reshape(video_embedding, (video_embedding.shape[0],video_embedding.shape[-1], video_embedding.shape[2]*video_embedding.shape[3]))
 
         caption_embedding = self.embedding(captions)
         outputs = self.rnn_layer(caption_embedding, initial_state=video_embedding)
-        # outputs = self.flatten(outputs)
         logits = self.ff_layer(outputs)
         return logits
 
     
     def accuracy_function(self, prbs, labels, mask):
-        # mask = tf.fill(labels.shape, True)
-        # correct_classes = tf.argmax(prbs, axis=-1) == labels
-        # boolean_vals = tf.boolean_mask(tf.cast(correct_classes, tf.float32), mask)
-        # print((list(boolean_vals)))
-        # accuracy = tf.reduce_mean(tf.boolean_mask(tf.cast(correct_classes, tf.float32), mask), keepdims=True)
-
         labels = tf.cast(labels, tf.int64)
         correct_classes = tf.argmax(tf.cast(prbs, tf.float64), axis=-1) == labels
         accuracy = tf.reduce_mean(tf.boolean_mask(tf.cast(correct_classes, tf.float32), mask))
@@ -161,16 +149,12 @@ def main():
 
     if os.path.exists(model_path):
         model = tf.keras.models.load_model(model_path)
-        print("Loading saved model")
     else:
         model = Model(len(data["idx2word"].keys()), hidden_size=32, window_size=20)
-        print("Creating new model")
 
 
-    ## TODO: Compile your model using your choice of optimizer, loss, and metrics
     model.compile(
         optimizer=tf.keras.optimizers.legacy.Adam(learning_rate=0.005), 
-        # metrics=[acc_metric],
     )
 
     epochs = 3
@@ -181,13 +165,12 @@ def main():
             tf.convert_to_tensor(data["train_videos"]), 
             data["train_video_mappings"], data["word2idx"]['<pad>'], batch_size=15)
         print(f"epoch:{e}, train_acc:{train_acc}")
-    
-    # test_acc = model.test(
-    #     tf.convert_to_tensor(data["test_captions"]), 
-    #     tf.convert_to_tensor(data["test_videos"]), 
-    #     data["test_video_mappings"], data["word2idx"]['<pad>'], batch_size=15
-    # )
-    # print(f'test acc{test_acc}')
+        test_acc = model.test(
+            tf.convert_to_tensor(data["test_captions"]), 
+            tf.convert_to_tensor(data["test_videos"]), 
+            data["test_video_mappings"], data["word2idx"]['<pad>'], batch_size=15
+        )
+        print(f"epoch {e}, test acc{test_acc}")
 
     model.save('./output/lipReaderModel.keras')
 

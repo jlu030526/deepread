@@ -41,9 +41,6 @@ def preprocess(output_dir, video, timestamp_data):
         word_frames_dict[word] = frames
         all_frames += frames
 
-        # out_file = output_dir+word+".mp4"
-        # ffmpeg_extract_subclip(video, start, end, targetname=out_file)
-
     return word_frames_dict, all_frames
 
 def read_audios(video_file):
@@ -54,30 +51,17 @@ def read_audios(video_file):
     audio_clip.close()
     video_clip.close()
 
-    # audio = wave.open(audio_file, 'rb')
-
 def read_video(video_filepath):
     
     vid = imageio.get_reader(video_filepath, 'ffmpeg')
-
-    # for i in range(len(video.get_meta_data()))
-
-    # container = av.open(video_filepath)
-
-    # ims = [frame.to_image() for frame in container.decode(video=0)]
-    # ims = [im.convert('L') for im in ims ]
-    # ims = np.array([np.array(im) for im in ims])
-    # print(ims.shape)
-    # print(vid)
     return vid
 
 
 def read_files(src):
     video_name_to_data = {}
-    # iteration = 0
-    max = 20
+    maxi = 20
 
-    for i in range(max):
+    for i in range(maxi):
         directory = os.listdir(src)[i]
         for file in os.listdir(src + '' + directory):
             if '.txt' in file:
@@ -95,29 +79,11 @@ def read_files(src):
                 
                 video_name_to_data[video_name] = (first_line, data)
 
-        print(f'Data for iteration:{i} read!')
-        # iteration += 1
-        # if iteration == 50:
-        #     break
-
     return video_name_to_data
-
-# def read_file(file_path):
-#     data = pd.read_csv(
-#             file_path, sep=" ", 
-#             usecols=["WORD", "START", "END", "ASDSCORE"],
-#             skiprows=3)
-    
-#     return data
 
 def load_data(data_folder):
     data_dir = './data/pretrain/'
     window_size = 20
-    # vid_file_path = data_dir + '00001.mp4'
-    # data_file_path = data_dir + '00001.txt'
-
-    # data = read_file(data_file_path)
-    # preprocess(data_dir, vid_file_path, data)
 
     video_name_to_data = read_files(data_dir)
     video_name_to_data_cleaned = {}
@@ -125,7 +91,7 @@ def load_data(data_folder):
         if len(video_name_to_data[name][0]) < window_size:
             video_name_to_data_cleaned[name] = video_name_to_data[name]
 
-    # print(video_data_pairs)
+
     data_representations = []
 
     def get_data_from_names(video_names):
@@ -133,7 +99,6 @@ def load_data(data_folder):
         videos = []
         video_word_mappings = []
         for video_name in video_names:
-            # print(video_name)
             video = read_video(video_name + '.mp4')
             word_frame_dict, all_frames = preprocess(data_dir, video, video_name_to_data_cleaned[video_name][1])
             data_representations.append((video_name_to_data_cleaned[video_name][0], word_frame_dict))
@@ -166,7 +131,7 @@ def load_data(data_folder):
                 if word_count[word] <= minimum_frequency:
                     caption[index] = '<unk>'
 
-    min_freq = 10
+    min_freq = 2
     unk_captions(train_captions, min_freq)
     unk_captions(test_captions, min_freq)
 
@@ -183,19 +148,15 @@ def load_data(data_folder):
             max_frames = max(len(video), max_frames)
         return max_frames + 1
 
-    # print("bruh")
     def pad_videos(videos, max_frames):
         for i, v in enumerate(videos):
-            # print(i)
             pad_length = max_frames - len(v)
             zeros = np.zeros((pad_length, *v[0].shape))
             if pad_length > 0:
-                # zeros = np.zeros((pad_length, *v[0].shape))
                 videos[i] = np.concatenate((v, zeros), axis=0)
     
-    pad_videos(train_videos, max_frames(train_videos))
-    pad_videos(test_videos, max_frames(test_videos))
-    # print("huh")
+    pad_videos(train_videos, 200)
+    pad_videos(test_videos, 200)
     word2idx = {}
     vocab_size = 0
     for caption in train_captions:
@@ -209,8 +170,6 @@ def load_data(data_folder):
     for caption in test_captions:
         for index, word in enumerate(caption):
             caption[index] = word2idx[word]
-
-    print("what")
 
     return dict(
         test_videos = test_videos,
